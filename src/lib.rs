@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     fmt::Display,
+    hash::Hash,
     iter::Peekable,
     str::Chars,
 };
@@ -148,18 +149,9 @@ impl Node {
                 stack.push_back(operand);
                 operand._children(stack);
             }
-
-            // Node::Expr(children) => {
-            //     for child in children {
-            //         stack.push_back(child);
-            //     }
-            // }
-            Node::Atom(_) => {
-                // stack.push_back(self);
-            }
+            _ => {}
         }
     }
-
     fn children(&self) -> Vec<&Node> {
         let mut stack = VecDeque::new();
         self._children(&mut stack);
@@ -276,28 +268,31 @@ impl Formula {
 
     pub fn print_truth_table(&self) {
         // For every combination of variables (true / false) print the result of the formula
+        let mut vars = HashMap::new();
+        let mut variables = self.variables.iter().collect::<Vec<_>>();
+        variables.sort_unstable();
 
         // Print header
         print!("| ");
-        for var in &self.variables {
+        for var in &variables {
             print!("{:^5} | ", var);
         }
         let root_str = format!("{}", self.root);
         println!("{} |", root_str);
-        let line_len = 4 + root_str.len() + 8 * self.variables.len();
+        let line_len = 4 + root_str.len() + 8 * variables.len();
         let line = "-".repeat(line_len);
         println!("{line}");
 
-        let mut vars = HashMap::new();
-        for i in 0..(1 << self.variables.len()) {
-            for (j, var) in self.variables.iter().enumerate() {
-                vars.insert(var.clone(), (i >> j) & 1 == 1);
-            }
-            // println!("{:?} -> {}", vars, self.eval(&vars).unwrap_or(false));
+        let num_vars = variables.len();
+        let num_rows = 1 << num_vars;
+
+        for i in (0..num_rows).rev() {
             print!("| ");
-            for var in &self.variables {
-                let value = if *vars.get(var).unwrap() { "T" } else { "F" };
-                print!("{:^5} | ", value);
+            for (j, var) in variables.iter().enumerate() {
+                let value = (i >> (num_vars - 1 - j)) & 1 == 1;
+                vars.insert(var.to_string(), value);
+                let value_str = if value { "T" } else { "F" };
+                print!("{:^5} | ", value_str);
             }
 
             // Evaluate and print result
@@ -305,8 +300,41 @@ impl Formula {
             let result_str = if result { "T" } else { "F" };
             println!("{:^w$} |", result_str, w = root_str.len());
         }
+
         println!("{line}");
         println!("T: True, F: False");
+
+        // Print header
+        // print!("| ");
+        // for var in &variables {
+        //     print!("{:^5} | ", var);
+        // }
+        // let root_str = format!("{}", self.root);
+        // println!("{} |", root_str);
+        // let line_len = 4 + root_str.len() + 8 * variables.len();
+        // let line = "-".repeat(line_len);
+        // println!("{line}");
+
+        // let mut i = 1 << self.variables.len();
+        // while i > 0 {
+        //     for (j, var) in variables.clone().into_iter().enumerate() {
+        //         vars.insert(var.clone(), (i >> j) & 1 == 1);
+        //     }
+        //     // println!("{:?} -> {}", vars, self.eval(&vars).unwrap_or(false));
+        //     print!("| ");
+        //     for var in variables.clone() {
+        //         let value = if *vars.get(var).unwrap() { "T" } else { "F" };
+        //         print!("{:^5} | ", value);
+        //     }
+
+        //     // Evaluate and print result
+        //     let result = self.eval(&vars).unwrap_or(false);
+        //     let result_str = if result { "T" } else { "F" };
+        //     println!("{:^w$} |", result_str, w = root_str.len());
+        //     i -= 1;
+        // }
+        // println!("{line}");
+        // println!("T: True, F: False");
     }
 }
 
