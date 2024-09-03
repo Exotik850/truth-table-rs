@@ -38,8 +38,7 @@ pub fn shunting_yard(input: &str) -> Vec<Token> {
                         break;
                     }
                 }
-                output.push(Token::Atom(current_atom.clone()));
-                current_atom.clear();
+                output.push(Token::Atom(std::mem::take(&mut current_atom)));
                 continue;
             }
             c => {
