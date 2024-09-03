@@ -1,74 +1,18 @@
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     fmt::Display,
-    hash::Hash,
-    iter::Peekable,
-    str::Chars,
 };
+
+mod lexer;
+mod operator;
+mod parser;
 
 #[cfg(test)]
 mod test;
 
-fn shunting_yard(input: &str) -> Vec<Token> {
-    let mut output = Vec::with_capacity(input.len());
-    let mut stack: Vec<Operator> = Vec::new();
-    let mut current_atom = String::new();
-    let mut input = input.chars().peekable();
-    while let Some(&c) = input.peek() {
-        match c {
-            ' ' => {
-                input.next();
-                continue;
-            }
-            '(' => stack.push(Operator::Parenthesis),
-            ')' => {
-                while let Some(top) = stack.pop() {
-                    if top == Operator::Parenthesis {
-                        break;
-                    }
-                    output.push(Token::Operator(top));
-                }
-            }
-            c if c.is_alphabetic() => {
-                while let Some(&c) = input.peek() {
-                    if c.is_alphabetic() {
-                        current_atom.push(c);
-                        input.next();
-                    } else {
-                        break;
-                    }
-                }
-                output.push(Token::Atom(std::mem::take(&mut current_atom)));
-                continue;
-            }
-            c => {
-                let Some(o) = Operator::from_peekable(&mut input) else {
-                    output.push(Token::Atom(c.to_string()));
-                    input.next();
-                    continue;
-                };
-                while let Some(&top) = stack.last() {
-                    if top == Operator::Parenthesis {
-                        break;
-                    }
-                    if top.precedence() <= o.precedence()
-                        && (top.precedence() != o.precedence()
-                            || o.associativity() == Associativity::Right)
-                    {
-                        break;
-                    }
-                    output.push(Token::Operator(stack.pop().unwrap()));
-                }
-                stack.push(o);
-            }
-        }
-        input.next();
-    }
-    output.extend(stack.drain(..).map(Token::Operator).rev());
-    output
-}
-
 type NodeChild = Box<Node>;
+
+pub use parser::FormulaParser;
 
 // And, not, or, if, iff
 #[derive(Debug)]
@@ -171,79 +115,10 @@ impl Node {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
-enum Token {
-    Operator(Operator),
-    Atom(String),
-}
-
-pub struct FormulaParser {
-    source: Vec<Token>, // Source that went through shunting yard
-}
-impl FormulaParser {
-    pub fn new(source: &str) -> FormulaParser {
-        let source = shunting_yard(source);
-        // println!("{:?}", source);
-        FormulaParser { source }
-    }
-
-    pub fn parse(self) -> Formula {
-        let root = self.parse_expr();
-        // println!("{:?}", root);
-        let variables = root
-            .children()
-            .into_iter()
-            .filter_map(|n| match n {
-                Node::Atom(s) => Some(s),
-                _ => None,
-            })
-            .cloned()
-            .collect();
-        Formula { variables, root }
-    }
-
-    fn parse_expr(self) -> Node {
-        let mut stack = Vec::new();
-
-        for token in self.source {
-            let op = match token {
-                Token::Atom(atom) => {
-                    stack.push(Node::Atom(atom));
-                    continue;
-                }
-                Token::Operator(op) => op,
-            };
-
-            match op {
-                Operator::And => {
-                    let right = stack.pop().unwrap();
-                    let left = stack.pop().unwrap();
-                    stack.push(Node::And(Box::new(left), Box::new(right)));
-                }
-                Operator::Or => {
-                    let right = stack.pop().unwrap();
-                    let left = stack.pop().unwrap();
-                    stack.push(Node::Or(Box::new(left), Box::new(right)));
-                }
-                Operator::Not => {
-                    let operand = stack.pop().unwrap();
-                    stack.push(Node::Not(Box::new(operand)));
-                }
-                Operator::If => {
-                    let right = stack.pop().unwrap();
-                    let left = stack.pop().unwrap();
-                    stack.push(Node::If(Box::new(left), Box::new(right)));
-                }
-                Operator::Iff => {
-                    let right = stack.pop().unwrap();
-                    let left = stack.pop().unwrap();
-                    stack.push(Node::Iff(Box::new(left), Box::new(right)));
-                }
-                _ => panic!("Invalid token"),
-            }
-        }
-        assert_eq!(stack.len(), 1, "Invalid expression");
-        stack.pop().unwrap()
+impl From<&str> for Formula {
+    fn from(s: &str) -> Self {
+        let parser = parser::FormulaParser::new(s);
+        parser.parse()
     }
 }
 
@@ -253,29 +128,21 @@ pub struct Formula {
     variables: HashSet<String>,
 }
 
+fn eval_node(node: &Node, vars: &HashMap<String, bool>) -> Option<bool> {
+    let out = match node {
+        Node::And(left, right) => eval_node(left, vars)? && eval_node(right, vars)?,
+        Node::Or(left, right) => eval_node(left, vars)? || eval_node(right, vars)?,
+        Node::Not(operand) => !eval_node(operand, vars)?,
+        Node::If(left, right) => !eval_node(left, vars)? || eval_node(right, vars)?,
+        Node::Iff(left, right) => eval_node(left, vars)? == eval_node(right, vars)?,
+        Node::Atom(s) => return vars.get(s).copied(),
+    };
+    Some(out)
+}
+
 impl Formula {
     pub fn eval(&self, vars: &HashMap<String, bool>) -> Option<bool> {
-        self.eval_inner(&self.root, vars)
-    }
-
-    fn eval_inner(&self, node: &Node, vars: &HashMap<String, bool>) -> Option<bool> {
-        let out = match node {
-            Node::And(left, right) => {
-                self.eval_inner(left, vars)? && self.eval_inner(right, vars)?
-            }
-            Node::Or(left, right) => {
-                self.eval_inner(left, vars)? || self.eval_inner(right, vars)?
-            }
-            Node::Not(operand) => !self.eval_inner(operand, vars)?,
-            Node::If(left, right) => {
-                !self.eval_inner(left, vars)? || self.eval_inner(right, vars)?
-            }
-            Node::Iff(left, right) => {
-                self.eval_inner(left, vars)? == self.eval_inner(right, vars)?
-            }
-            Node::Atom(s) => return vars.get(s).copied(),
-        };
-        Some(out)
+        eval_node(&self.root, vars)
     }
 
     pub fn print_truth_table(&self) {
@@ -324,95 +191,4 @@ impl Formula {
         println!("{line}");
         println!("T: True, F: False");
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Operator {
-    And,
-    Or,
-    Not,
-    If,
-    Iff,
-    Parenthesis,
-}
-
-impl Operator {
-    fn from_peekable(input: &mut Peekable<Chars>) -> Option<Operator> {
-        let &c = input.peek()?;
-        match c {
-            '-' => {
-                input.next();
-                let Some('>') = input.peek() else { return None };
-                input.next();
-                Some(Operator::If)
-            }
-            '<' => {
-                input.next();
-                let Some('-') = input.peek() else { return None };
-                input.next();
-                let Some('>') = input.peek() else { return None };
-                input.next();
-                Some(Operator::Iff)
-            }
-            '&' => {
-                input.next();
-                if let Some('&') = input.peek() {
-                    input.next();
-                }
-                Some(Operator::And)
-            }
-            '|' => {
-                input.next();
-                if let Some('|') = input.peek() {
-                    input.next();
-                }
-                Some(Operator::Or)
-            }
-            _ => Operator::from_char(c),
-        }
-    }
-
-    fn from_char(c: char) -> Option<Operator> {
-        match c {
-            '&' => Some(Operator::And),
-            '|' => Some(Operator::Or),
-            '~' | '!' => Some(Operator::Not),
-            '(' | ')' => Some(Operator::Parenthesis),
-            _ => None,
-        }
-    }
-
-    fn precedence(self) -> u8 {
-        match self {
-            Operator::Parenthesis => 4,
-            Operator::Not => 3,
-            Operator::And => 2,
-            Operator::Or => 1,
-            Operator::If | Operator::Iff => 0,
-        }
-    }
-
-    fn associativity(self) -> Associativity {
-        match self {
-            Operator::Not => Associativity::Right,
-            _ => Associativity::Left,
-        }
-    }
-
-    fn to_char(self) -> char {
-        match self {
-            Operator::And => '&',
-            Operator::Or => '|',
-            Operator::Not => '~',
-            Operator::If => '-',
-            Operator::Iff => '<',
-            Operator::Parenthesis => '(',
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Associativity {
-    Left,
-    Right,
 }

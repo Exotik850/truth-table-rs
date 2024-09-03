@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::collections::HashMap;
-use truth_table_rs::{FormulaParser};
+use truth_table_rs::FormulaParser;
 
 fn parse_benchmark(c: &mut Criterion) {
     let source = "a & b | ~c -> d <-> e";

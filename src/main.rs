@@ -1,10 +1,9 @@
-use truth_table_rs::FormulaParser;
+use truth_table_rs::Formula;
 
 fn main() {
     // let source = "((A & B) | C)";
     let source = std::env::args().nth(1).unwrap_or("".to_string());
-    let parser = FormulaParser::new(&source);
-    let formula = parser.parse();
+    let formula: Formula = (source.as_str()).into();
 
     // for node in formula.root.children() {
     //     println!("{:?}", node);
