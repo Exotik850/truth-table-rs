@@ -9,7 +9,7 @@ use std::{
 #[cfg(test)]
 mod test;
 
-pub fn shunting_yard(input: &str) -> Vec<Token> {
+fn shunting_yard(input: &str) -> Vec<Token> {
     let mut output = Vec::with_capacity(input.len());
     let mut stack: Vec<Operator> = Vec::new();
     let mut current_atom = String::new();
@@ -241,48 +241,7 @@ impl FormulaParser {
                 }
                 _ => panic!("Invalid token"),
             }
-
-            // match token {
-            //     '&' => {
-            //         let right = stack.pop().unwrap();
-            //         let left = stack.pop().unwrap();
-            //         stack.push(Node::And(Box::new(left), Box::new(right)));
-            //     }
-            //     '|' => {
-            //         let right = stack.pop().unwrap();
-            //         let left = stack.pop().unwrap();
-            //         stack.push(Node::Or(Box::new(left), Box::new(right)));
-            //     }
-            //     '~' => {
-            //         let operand = stack.pop().unwrap();
-            //         stack.push(Node::Not(Box::new(operand)));
-            //     }
-            //     '-' => {
-            //         // if self.source[self.pos] != '>' {
-            //         //     panic!("Invalid token");
-            //         // }
-            //         // self.pos += 1;
-            //         let right = stack.pop().unwrap();
-            //         let left = stack.pop().unwrap();
-            //         stack.push(Node::If(Box::new(left), Box::new(right)));
-            //     }
-            //     '<' => {
-            //         // if &self.source[self.pos..self.pos+1] != ['-', '>'] {
-            //         //     panic!("Invalid tokens");
-            //         // }
-            //         // self.pos += 2;
-            //         let right = stack.pop().unwrap();
-            //         let left = stack.pop().unwrap();
-            //         stack.push(Node::Iff(Box::new(left), Box::new(right)));
-            //     }
-            //     _ => {
-            //         stack.push(Node::Atom(token.to_string()));
-            //     }
-            //     }
-            // }
         }
-
-        // println!("{:?}", stack);
         assert_eq!(stack.len(), 1, "Invalid expression");
         stack.pop().unwrap()
     }
@@ -349,45 +308,21 @@ impl Formula {
             }
 
             // Evaluate and print result
-            let result = self.eval(&vars).unwrap_or(false);
-            let result_str = if result { "T" } else { "F" };
+            let result_str = match self.eval(&vars) {
+                Some(op) => {
+                    if op {
+                        "T"
+                    } else {
+                        "F"
+                    }
+                }
+                None => "E",
+            };
             println!("{:^w$} |", result_str, w = root_str.len());
         }
 
         println!("{line}");
         println!("T: True, F: False");
-
-        // Print header
-        // print!("| ");
-        // for var in &variables {
-        //     print!("{:^5} | ", var);
-        // }
-        // let root_str = format!("{}", self.root);
-        // println!("{} |", root_str);
-        // let line_len = 4 + root_str.len() + 8 * variables.len();
-        // let line = "-".repeat(line_len);
-        // println!("{line}");
-
-        // let mut i = 1 << self.variables.len();
-        // while i > 0 {
-        //     for (j, var) in variables.clone().into_iter().enumerate() {
-        //         vars.insert(var.clone(), (i >> j) & 1 == 1);
-        //     }
-        //     // println!("{:?} -> {}", vars, self.eval(&vars).unwrap_or(false));
-        //     print!("| ");
-        //     for var in variables.clone() {
-        //         let value = if *vars.get(var).unwrap() { "T" } else { "F" };
-        //         print!("{:^5} | ", value);
-        //     }
-
-        //     // Evaluate and print result
-        //     let result = self.eval(&vars).unwrap_or(false);
-        //     let result_str = if result { "T" } else { "F" };
-        //     println!("{:^w$} |", result_str, w = root_str.len());
-        //     i -= 1;
-        // }
-        // println!("{line}");
-        // println!("T: True, F: False");
     }
 }
 
