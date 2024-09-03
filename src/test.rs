@@ -31,14 +31,14 @@ fn test_formula_evaluation() {
         .map(|&(s, b)| (s.to_string(), b))
         .collect();
 
-    assert_eq!(formula.eval(&vars), true);
+    assert_eq!(formula.eval(&vars), Some(true));
 
     let vars = [("a", true), ("b", false), ("c", false)]
         .iter()
         .map(|&(s, b)| (s.to_string(), b))
         .collect();
 
-    assert_eq!(formula.eval(&vars), false);
+    assert_eq!(formula.eval(&vars), Some(false));
 }
 
 // Test operator precedence
@@ -52,14 +52,14 @@ fn test_operator_precedence() {
         .map(|&(s, b)| (s.to_string(), b))
         .collect();
 
-    assert_eq!(formula.eval(&vars), true);
+    assert_eq!(formula.eval(&vars), Some(true));
 
     let vars = [("a", false), ("b", true), ("c", false)]
         .iter()
         .map(|&(s, b)| (s.to_string(), b))
         .collect();
 
-    assert_eq!(formula.eval(&vars), false);
+    assert_eq!(formula.eval(&vars), Some(false));
 }
 
 // Test complex formula with multiple operators
@@ -79,7 +79,7 @@ fn test_complex_formula() {
     .map(|&(s, b)| (s.to_string(), b))
     .collect();
 
-    assert_eq!(formula.eval(&vars), true);
+    assert_eq!(formula.eval(&vars), Some(true));
 
     let vars = [
         ("a", false),
@@ -92,12 +92,11 @@ fn test_complex_formula() {
     .map(|&(s, b)| (s.to_string(), b))
     .collect();
 
-    assert_eq!(formula.eval(&vars), true);
+    assert_eq!(formula.eval(&vars), Some(true));
 }
 
 // Test error handling for invalid input
 #[test]
-#[should_panic(expected = "Invalid variable")]
 fn test_invalid_variable() {
     let parser = FormulaParser::new("a & b");
     let formula = parser.parse();
@@ -107,7 +106,7 @@ fn test_invalid_variable() {
         .map(|&(s, b)| (s.to_string(), b))
         .collect();
 
-    formula.eval(&vars);
+    assert_eq!(formula.eval(&vars), None);    
 }
 
 // Test associativity of operators
@@ -121,12 +120,12 @@ fn test_operator_associativity() {
         .map(|&(s, b)| (s.to_string(), b))
         .collect();
 
-    assert_eq!(formula.eval(&vars), true);
+    assert_eq!(formula.eval(&vars), Some(true));
 
     let vars = [("a", true), ("b", true), ("c", false)]
         .iter()
         .map(|&(s, b)| (s.to_string(), b))
         .collect();
 
-    assert_eq!(formula.eval(&vars), false);
+    assert_eq!(formula.eval(&vars), Some(false));
 }

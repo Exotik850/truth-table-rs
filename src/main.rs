@@ -7,22 +7,23 @@ use std::{
 mod test;
 
 fn main() {
-    let source = "a & b | c";
+    let source = "(a & b | c) | (d & e)";
     let parser = FormulaParser::new(source);
     let formula = parser.parse();
 
-    for node in formula.root.children() {
-        println!("{:?}", node);
-    }
+    // for node in formula.root.children() {
+    //     println!("{:?}", node);
+    // }
 
-    println!("{:?}", formula);
+    // println!("{:?}", formula);
+    formula.print_truth_table();
 
-    let vars = [("a", true), ("b", false), ("c", true)]
-        .iter()
-        .map(|&(s, b)| (s.to_string(), b))
-        .collect();
+    // let vars = [("a", true), ("b", false), ("c", true)]
+    //     .iter()
+    //     .map(|&(s, b)| (s.to_string(), b))
+    //     .collect();
 
-    println!("{}", formula.eval(&vars));
+    // println!("{}", formula.eval(&vars));
 }
 
 pub fn shunting_yard(input: &str) -> Vec<char> {
@@ -71,15 +72,18 @@ pub fn shunting_yard(input: &str) -> Vec<char> {
     output
 }
 
+
+type NodeChild = Box<Node>;
+ 
 // And, not, or, if, iff
 #[derive(Debug)]
 pub enum Node {
-    And(Box<Node>, Box<Node>), // &
-    Or(Box<Node>, Box<Node>),  // |
-    Not(Box<Node>),            // ~
-    If(Box<Node>, Box<Node>),  // ->
-    Iff(Box<Node>, Box<Node>), // <->
-    Expr(Vec<Box<Node>>),      // Expression
+    And(NodeChild, NodeChild), // &
+    Or(NodeChild, NodeChild),  // |
+    Not(NodeChild),            // ~
+    If(NodeChild, NodeChild),  // ->
+    Iff(NodeChild, NodeChild), // <->
+    // Expr(Vec<Box<Node>>),      // Expression
     Atom(String),              // Variable
 }
 
@@ -100,11 +104,11 @@ impl Node {
                 operand._children(stack);
             }
 
-            Node::Expr(children) => {
-                for child in children {
-                    stack.push_back(child);
-                }
-            }
+            // Node::Expr(children) => {
+            //     for child in children {
+            //         stack.push_back(child);
+            //     }
+            // }
             Node::Atom(_) => {
                 // stack.push_back(self);
             }
@@ -125,7 +129,7 @@ struct FormulaParser {
 impl FormulaParser {
     pub fn new(source: &str) -> FormulaParser {
         let source = shunting_yard(source);
-        println!("{:?}", source);
+        // println!("{:?}", source);
         FormulaParser { source, pos: 0 }
     }
 
@@ -200,19 +204,38 @@ pub struct Formula {
 }
 
 impl Formula {
-    pub fn eval(&self, vars: &HashMap<String, bool>) -> bool {
-        self.eval_node(&self.root, vars)
+    pub fn eval(&self, vars: &HashMap<String, bool>) -> Option<bool> {
+        self.eval_inner(&self.root, vars)
     }
 
-    fn eval_node(&self, node: &Node, vars: &HashMap<String, bool>) -> bool {
-        match node {
-            Node::And(left, right) => self.eval_node(left, vars) && self.eval_node(right, vars),
-            Node::Or(left, right) => self.eval_node(left, vars) || self.eval_node(right, vars),
-            Node::Not(operand) => !self.eval_node(operand, vars),
-            Node::If(left, right) => !self.eval_node(left, vars) || self.eval_node(right, vars),
-            Node::Iff(left, right) => self.eval_node(left, vars) == self.eval_node(right, vars),
-            Node::Atom(s) => *vars.get(s).expect("Invalid variable"),
-            Node::Expr(_) => panic!("Invalid node"),
+    fn eval_inner(&self, node: &Node, vars: &HashMap<String, bool>) -> Option<bool> {
+        let out = match node {
+            Node::And(left, right) => {
+                self.eval_inner(left, vars)? && self.eval_inner(right, vars)?
+            }
+            Node::Or(left, right) => {
+                self.eval_inner(left, vars)? || self.eval_inner(right, vars)?
+            }
+            Node::Not(operand) => !self.eval_inner(operand, vars)?,
+            Node::If(left, right) => {
+                !self.eval_inner(left, vars)? || self.eval_inner(right, vars)?
+            }
+            Node::Iff(left, right) => {
+                self.eval_inner(left, vars)? == self.eval_inner(right, vars)?
+            }
+            Node::Atom(s) => return vars.get(s).copied(),
+        };
+        Some(out)
+    }
+
+    pub fn print_truth_table(&self) {
+        // For every combination of variables (true / false) print the result of the formula
+        let mut vars = HashMap::new();
+        for i in 0..(1 << self.variables.len()) {
+            for (j, var) in self.variables.iter().enumerate() {
+                vars.insert(var.clone(), (i >> j) & 1 == 1);
+            }
+            println!("{:?} -> {}", vars, self.eval(&vars).unwrap_or(false));
         }
     }
 }
@@ -233,26 +256,17 @@ impl Operator {
         match c {
             '-' => {
                 input.next();
-                if let Some('>') = input.peek() {
-                    input.next();
-                    Some(Operator::If)
-                } else {
-                    None
-                }
+                let Some('>') = input.peek() else { return None };
+                input.next();
+                Some(Operator::If)
             }
             '<' => {
                 input.next();
-                if let Some('-') = input.peek() {
-                    input.next();
-                    if let Some('>') = input.peek() {
-                        input.next();
-                        Some(Operator::Iff)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
+                let Some('-') = input.peek() else { return None };
+                input.next();
+                let Some('>') = input.peek() else { return None };
+                input.next();
+                Some(Operator::Iff)
             }
             _ => Operator::from_char(c),
         }
