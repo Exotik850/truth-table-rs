@@ -1,7 +1,7 @@
 use truth_table_rs::FormulaParser;
 
 fn main() {
-    let source = "a | ~a";
+    let source = "((A & B) | C)";
     let parser = FormulaParser::new(source);
     let formula = parser.parse();
 

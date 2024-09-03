@@ -69,19 +69,70 @@ pub enum Node {
 }
 
 impl Display for Node {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Node::And(left, right) => write!(f, "({} & {})", left, right),
-            Node::Or(left, right) => write!(f, "({} | {})", left, right),
-            Node::Not(operand) => write!(f, "~{}", operand),
-            Node::If(left, right) => write!(f, "({} -> {})", left, right),
-            Node::Iff(left, right) => write!(f, "({} <-> {})", left, right),
-            Node::Atom(s) => write!(f, "{}", s),
-        }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.fmt_with_precedence(f, 0)
     }
 }
-
+use std::fmt;
 impl Node {
+    fn precedence(&self) -> u8 {
+        match self {
+            Node::Atom(_) => 5,
+            Node::Not(_) => 4,
+            Node::And(_, _) => 3,
+            Node::Or(_, _) => 2,
+            Node::If(_, _) => 1,
+            Node::Iff(_, _) => 0,
+        }
+    }
+
+    fn fmt_with_precedence(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+        parent_precedence: u8,
+    ) -> fmt::Result {
+        let this_precedence = self.precedence();
+        let need_parens = this_precedence < parent_precedence;
+
+        if need_parens {
+            write!(f, "(")?;
+        }
+
+        match self {
+            Node::And(left, right) => {
+                left.fmt_with_precedence(f, this_precedence)?;
+                write!(f, " & ")?;
+                right.fmt_with_precedence(f, this_precedence)?;
+            }
+            Node::Or(left, right) => {
+                left.fmt_with_precedence(f, this_precedence)?;
+                write!(f, " | ")?;
+                right.fmt_with_precedence(f, this_precedence)?;
+            }
+            Node::Not(operand) => {
+                write!(f, "~")?;
+                operand.fmt_with_precedence(f, this_precedence)?;
+            }
+            Node::If(left, right) => {
+                left.fmt_with_precedence(f, this_precedence)?;
+                write!(f, " -> ")?;
+                right.fmt_with_precedence(f, this_precedence)?;
+            }
+            Node::Iff(left, right) => {
+                left.fmt_with_precedence(f, this_precedence)?;
+                write!(f, " <-> ")?;
+                right.fmt_with_precedence(f, this_precedence)?;
+            }
+            Node::Atom(s) => write!(f, "{}", s)?,
+        }
+
+        if need_parens {
+            write!(f, ")")?;
+        }
+
+        Ok(())
+    }
+
     fn _children<'a>(&'a self, stack: &mut VecDeque<&'a Node>) {
         match self {
             Node::And(left, right)
