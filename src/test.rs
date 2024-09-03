@@ -3,9 +3,32 @@ use super::*;
 // Test Shunting Yard algorithm
 #[test]
 fn test_shunting_yard() {
-    assert_eq!(shunting_yard("a & b | c"), vec!['a', 'b', '&', 'c', '|']);
-    assert_eq!(shunting_yard("a & (b | c)"), vec!['a', 'b', 'c', '|', '&']);
-    assert_eq!(shunting_yard("~a & b"), vec!['a', '~', 'b', '&']);
+    // assert_eq!(shunting_yard("a & b | c"), vec!['a', 'b', '&', 'c', '|']);
+    // assert_eq!(shunting_yard("a & (b | c)"), vec!['a', 'b', 'c', '|', '&']);
+    // assert_eq!(shunting_yard("~a & b"), vec!['a', '~', 'b', '&']);
+
+    assert_eq!(shunting_yard("a & b | c"), vec![
+      Token::Atom("a".to_string()),
+      Token::Atom("b".to_string()),
+      Token::Operator(Operator::And),
+      Token::Atom("c".to_string()),
+      Token::Operator(Operator::Or),
+    ]);
+
+    assert_eq!(shunting_yard("a & (b | c)"), vec![
+      Token::Atom("a".to_string()),
+      Token::Atom("b".to_string()),
+      Token::Atom("c".to_string()),
+      Token::Operator(Operator::Or),
+      Token::Operator(Operator::And),
+    ]);
+
+    assert_eq!(shunting_yard("~a & b"), vec![
+      Token::Atom("a".to_string()),
+      Token::Operator(Operator::Not),
+      Token::Atom("b".to_string()),
+      Token::Operator(Operator::And),
+    ]);
 }
 
 // Test formula parsing

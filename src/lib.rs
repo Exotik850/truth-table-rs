@@ -9,9 +9,10 @@ use std::{
 #[cfg(test)]
 mod test;
 
-pub fn shunting_yard(input: &str) -> Vec<char> {
+pub fn shunting_yard(input: &str) -> Vec<Token> {
     let mut output = Vec::with_capacity(input.len());
     let mut stack: Vec<Operator> = Vec::new();
+    let mut current_atom = String::new();
     let mut input = input.chars().peekable();
     while let Some(&c) = input.peek() {
         match c {
@@ -25,12 +26,12 @@ pub fn shunting_yard(input: &str) -> Vec<char> {
                     if top == Operator::Parenthesis {
                         break;
                     }
-                    output.push(top.to_char());
+                    output.push(Token::Operator(top));
                 }
             }
             c => {
                 let Some(o) = Operator::from_peekable(&mut input) else {
-                    output.push(c);
+                    output.push(Token::Atom(c.to_string()));
                     input.next();
                     continue;
                 };
@@ -44,14 +45,14 @@ pub fn shunting_yard(input: &str) -> Vec<char> {
                     {
                         break;
                     }
-                    output.push(stack.pop().unwrap().to_char());
+                    output.push(Token::Operator(stack.pop().unwrap()));
                 }
                 stack.push(o);
             }
         }
         input.next();
     }
-    output.extend(stack.drain(..).map(Operator::to_char).rev());
+    output.extend(stack.drain(..).map(Token::Operator).rev());
     output
 }
 
@@ -65,8 +66,7 @@ pub enum Node {
     Not(NodeChild),            // ~
     If(NodeChild, NodeChild),  // ->
     Iff(NodeChild, NodeChild), // <->
-    // Expr(Vec<Box<Node>>),      // Expression
-    Atom(String), // Variable
+    Atom(String),              // Variable
 }
 
 impl Display for Node {
@@ -159,18 +159,23 @@ impl Node {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
+enum Token {
+    Operator(Operator),
+    Atom(String),
+}
+
 pub struct FormulaParser {
-    source: Vec<char>, // Source that went through shunting yard
-    pos: usize,
+    source: Vec<Token>, // Source that went through shunting yard
 }
 impl FormulaParser {
     pub fn new(source: &str) -> FormulaParser {
         let source = shunting_yard(source);
         // println!("{:?}", source);
-        FormulaParser { source, pos: 0 }
+        FormulaParser { source }
     }
 
-    pub fn parse(mut self) -> Formula {
+    pub fn parse(self) -> Formula {
         let root = self.parse_expr();
         // println!("{:?}", root);
         let variables = root
@@ -185,49 +190,84 @@ impl FormulaParser {
         Formula { variables, root }
     }
 
-    fn parse_expr(&mut self) -> Node {
+    fn parse_expr(self) -> Node {
         let mut stack = Vec::new();
 
-        while let Some(&token) = self.source.get(self.pos) {
-            self.pos += 1;
+        for token in self.source {
+            let op = match token {
+                Token::Atom(atom) => {
+                    stack.push(Node::Atom(atom));
+                    continue;
+                }
+                Token::Operator(op) => op,
+            };
 
-            match token {
-                '&' => {
+            match op {
+                Operator::And => {
                     let right = stack.pop().unwrap();
                     let left = stack.pop().unwrap();
                     stack.push(Node::And(Box::new(left), Box::new(right)));
                 }
-                '|' => {
+                Operator::Or => {
                     let right = stack.pop().unwrap();
                     let left = stack.pop().unwrap();
                     stack.push(Node::Or(Box::new(left), Box::new(right)));
                 }
-                '~' => {
+                Operator::Not => {
                     let operand = stack.pop().unwrap();
                     stack.push(Node::Not(Box::new(operand)));
                 }
-                '-' => {
-                    // if self.source[self.pos] != '>' {
-                    //     panic!("Invalid token");
-                    // }
-                    // self.pos += 1;
+                Operator::If => {
                     let right = stack.pop().unwrap();
                     let left = stack.pop().unwrap();
                     stack.push(Node::If(Box::new(left), Box::new(right)));
                 }
-                '<' => {
-                    // if &self.source[self.pos..self.pos+1] != ['-', '>'] {
-                    //     panic!("Invalid tokens");
-                    // }
-                    // self.pos += 2;
+                Operator::Iff => {
                     let right = stack.pop().unwrap();
                     let left = stack.pop().unwrap();
                     stack.push(Node::Iff(Box::new(left), Box::new(right)));
                 }
-                _ => {
-                    stack.push(Node::Atom(token.to_string()));
-                }
+                _ => panic!("Invalid token"),
             }
+
+            // match token {
+            //     '&' => {
+            //         let right = stack.pop().unwrap();
+            //         let left = stack.pop().unwrap();
+            //         stack.push(Node::And(Box::new(left), Box::new(right)));
+            //     }
+            //     '|' => {
+            //         let right = stack.pop().unwrap();
+            //         let left = stack.pop().unwrap();
+            //         stack.push(Node::Or(Box::new(left), Box::new(right)));
+            //     }
+            //     '~' => {
+            //         let operand = stack.pop().unwrap();
+            //         stack.push(Node::Not(Box::new(operand)));
+            //     }
+            //     '-' => {
+            //         // if self.source[self.pos] != '>' {
+            //         //     panic!("Invalid token");
+            //         // }
+            //         // self.pos += 1;
+            //         let right = stack.pop().unwrap();
+            //         let left = stack.pop().unwrap();
+            //         stack.push(Node::If(Box::new(left), Box::new(right)));
+            //     }
+            //     '<' => {
+            //         // if &self.source[self.pos..self.pos+1] != ['-', '>'] {
+            //         //     panic!("Invalid tokens");
+            //         // }
+            //         // self.pos += 2;
+            //         let right = stack.pop().unwrap();
+            //         let left = stack.pop().unwrap();
+            //         stack.push(Node::Iff(Box::new(left), Box::new(right)));
+            //     }
+            //     _ => {
+            //         stack.push(Node::Atom(token.to_string()));
+            //     }
+            //     }
+            // }
         }
 
         // println!("{:?}", stack);
@@ -235,6 +275,7 @@ impl FormulaParser {
         stack.pop().unwrap()
     }
 }
+
 #[derive(Debug)]
 pub struct Formula {
     root: Node,
@@ -366,6 +407,20 @@ impl Operator {
                 input.next();
                 Some(Operator::Iff)
             }
+            '&' => {
+                input.next();
+                if let Some('&') = input.peek() {
+                    input.next();
+                }
+                Some(Operator::And)
+            }
+            '|' => {
+                input.next();
+                if let Some('|') = input.peek() {
+                    input.next();
+                }
+                Some(Operator::Or)
+            }
             _ => Operator::from_char(c),
         }
     }
@@ -374,7 +429,7 @@ impl Operator {
         match c {
             '&' => Some(Operator::And),
             '|' => Some(Operator::Or),
-            '~' => Some(Operator::Not),
+            '~' | '!' => Some(Operator::Not),
             '(' | ')' => Some(Operator::Parenthesis),
             _ => None,
         }
