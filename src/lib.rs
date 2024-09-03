@@ -29,6 +29,19 @@ pub fn shunting_yard(input: &str) -> Vec<Token> {
                     output.push(Token::Operator(top));
                 }
             }
+            c if c.is_alphabetic() => {
+                while let Some(&c) = input.peek() {
+                    if c.is_alphabetic() {
+                        current_atom.push(c);
+                        input.next();
+                    } else {
+                        break;
+                    }
+                }
+                output.push(Token::Atom(current_atom.clone()));
+                current_atom.clear();
+                continue;
+            }
             c => {
                 let Some(o) = Operator::from_peekable(&mut input) else {
                     output.push(Token::Atom(c.to_string()));
