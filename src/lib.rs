@@ -23,6 +23,7 @@ pub enum Node {
     If(NodeChild, NodeChild),  // ->
     Iff(NodeChild, NodeChild), // <->
     Atom(String),              // Variable
+    Value(bool),               // Constant
 }
 
 impl Display for Node {
@@ -34,7 +35,7 @@ use std::fmt;
 impl Node {
     fn precedence(&self) -> u8 {
         match self {
-            Node::Atom(_) => 5,
+            Node::Atom(_) | Node::Value(_) => 5,
             Node::Not(_) => 4,
             Node::And(_, _) => 3,
             Node::Or(_, _) => 2,
@@ -81,6 +82,7 @@ impl Node {
                 right.fmt_with_precedence(f, this_precedence)?;
             }
             Node::Atom(s) => write!(f, "{}", s)?,
+            Node::Value(b) => write!(f, "{}", if *b { "T" } else { "F" })?,
         }
 
         if need_parens {
@@ -90,28 +92,28 @@ impl Node {
         Ok(())
     }
 
-    fn _children<'a>(&'a self, stack: &mut VecDeque<&'a Node>) {
+    fn _children<'a>(&'a self, stack: &mut Vec<&'a Node>) {
         match self {
             Node::And(left, right)
             | Node::If(left, right)
             | Node::Or(left, right)
             | Node::Iff(left, right) => {
-                stack.push_back(left);
+                stack.push(left);
                 left._children(stack);
-                stack.push_back(right);
+                stack.push(right);
                 right._children(stack);
             }
             Node::Not(operand) => {
-                stack.push_back(operand);
+                stack.push(operand);
                 operand._children(stack);
             }
             _ => {}
         }
     }
     fn children(&self) -> Vec<&Node> {
-        let mut stack = VecDeque::new();
+        let mut stack = Vec::new();
         self._children(&mut stack);
-        stack.into_iter().collect()
+        stack
     }
 }
 
@@ -136,6 +138,7 @@ fn eval_node(node: &Node, vars: &HashMap<String, bool>) -> Option<bool> {
         Node::If(left, right) => !eval_node(left, vars)? || eval_node(right, vars)?,
         Node::Iff(left, right) => eval_node(left, vars)? == eval_node(right, vars)?,
         Node::Atom(s) => return vars.get(s).copied(),
+        Node::Value(b) => *b,
     };
     Some(out)
 }

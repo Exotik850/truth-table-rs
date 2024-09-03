@@ -4,6 +4,7 @@ use crate::operator::{Associativity, Operator};
 pub enum Token {
     Operator(Operator),
     Atom(String),
+    Value(bool),
 }
 
 pub fn shunting_yard(input: &str) -> Vec<Token> {
@@ -25,6 +26,21 @@ pub fn shunting_yard(input: &str) -> Vec<Token> {
                     }
                     output.push(Token::Operator(top));
                 }
+            }
+            't' | 'T' | 'f' | 'F' => {
+              // Check if it contains the words "true" or "false"
+                let mut value = String::new();
+                while let Some(&c) = input.peek() {
+                    if c.is_alphabetic() {
+                        value.push(c);
+                        input.next();
+                    } else {
+                        break;
+                    }
+                }
+                value.make_ascii_lowercase();
+                output.push(Token::Value(value == "true" || value == "t"));
+                continue;
             }
             c if c.is_alphabetic() => {
                 while let Some(&c) = input.peek() {

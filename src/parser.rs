@@ -39,6 +39,10 @@ impl FormulaParser {
                     continue;
                 }
                 Token::Operator(op) => op,
+                Token::Value(val) => {
+                    stack.push(Node::Value(val));
+                    continue;
+                }
             };
 
             match op {
