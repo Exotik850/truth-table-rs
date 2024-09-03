@@ -1,13 +1,11 @@
 use std::{
-    collections::{HashMap, VecDeque},
-    iter::Peekable,
-    str::Chars,
+    collections::{HashMap, HashSet, VecDeque}, fmt::Display, iter::Peekable, str::Chars
 };
 #[cfg(test)]
 mod test;
 
 fn main() {
-    let source = "(a & b | c) | (d & e)";
+    let source = "a | ~a";
     let parser = FormulaParser::new(source);
     let formula = parser.parse();
 
@@ -72,9 +70,8 @@ pub fn shunting_yard(input: &str) -> Vec<char> {
     output
 }
 
-
 type NodeChild = Box<Node>;
- 
+
 // And, not, or, if, iff
 #[derive(Debug)]
 pub enum Node {
@@ -84,7 +81,20 @@ pub enum Node {
     If(NodeChild, NodeChild),  // ->
     Iff(NodeChild, NodeChild), // <->
     // Expr(Vec<Box<Node>>),      // Expression
-    Atom(String),              // Variable
+    Atom(String), // Variable
+}
+
+impl Display for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Node::And(left, right) => write!(f, "({} & {})", left, right),
+            Node::Or(left, right) => write!(f, "({} | {})", left, right),
+            Node::Not(operand) => write!(f, "~{}", operand),
+            Node::If(left, right) => write!(f, "({} -> {})", left, right),
+            Node::Iff(left, right) => write!(f, "({} <-> {})", left, right),
+            Node::Atom(s) => write!(f, "{}", s),
+        }
+    }
 }
 
 impl Node {
@@ -193,6 +203,7 @@ impl FormulaParser {
             }
         }
 
+        // println!("{:?}", stack);
         assert_eq!(stack.len(), 1, "Invalid expression");
         stack.pop().unwrap()
     }
@@ -200,7 +211,7 @@ impl FormulaParser {
 #[derive(Debug)]
 pub struct Formula {
     root: Node,
-    variables: Vec<String>,
+    variables: HashSet<String>,
 }
 
 impl Formula {
@@ -230,13 +241,37 @@ impl Formula {
 
     pub fn print_truth_table(&self) {
         // For every combination of variables (true / false) print the result of the formula
+
+        // Print header
+        print!("| ");
+        for var in &self.variables {
+            print!("{:^5} | ", var);
+        }
+        let root_str = format!("{}", self.root);
+        println!("{} |", root_str);
+        let line_len = 4 + root_str.len() + 8 * self.variables.len();
+        let line = "-".repeat(line_len);
+        println!("{line}");
+
         let mut vars = HashMap::new();
         for i in 0..(1 << self.variables.len()) {
             for (j, var) in self.variables.iter().enumerate() {
                 vars.insert(var.clone(), (i >> j) & 1 == 1);
             }
-            println!("{:?} -> {}", vars, self.eval(&vars).unwrap_or(false));
+            // println!("{:?} -> {}", vars, self.eval(&vars).unwrap_or(false));
+            print!("| ");
+            for var in &self.variables {
+                let value = if *vars.get(var).unwrap() { "T" } else { "F" };
+                print!("{:^5} | ", value);
+            }
+
+            // Evaluate and print result
+            let result = self.eval(&vars).unwrap_or(false);
+            let result_str = if result { "T" } else { "F" };
+            println!("{:^w$} |", result_str, w=root_str.len());
         }
+        println!("{line}");
+        println!("T: True, F: False");
     }
 }
 

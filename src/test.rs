@@ -14,7 +14,7 @@ fn test_shunting_yard() {
 fn test_formula_parsing() {
     let parser = FormulaParser::new("a & b | c");
     let formula = parser.parse();
-    assert_eq!(formula.variables, vec!["a", "b", "c"]);
+    assert_eq!(formula.variables, ["a", "b", "c"].into_iter().map(String::from).collect());
 
     // We can't directly compare the AST structure, so we'll test it indirectly
     // through evaluation
