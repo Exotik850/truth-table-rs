@@ -127,7 +127,7 @@ impl From<&str> for Formula {
 #[derive(Debug)]
 pub struct Formula {
     root: Node,
-    variables: HashSet<String>,
+    pub variables: HashSet<String>,
 }
 
 fn eval_node(node: &Node, vars: &HashMap<String, bool>) -> Option<bool> {
@@ -147,53 +147,6 @@ impl Formula {
     pub fn eval(&self, vars: &HashMap<String, bool>) -> Option<bool> {
         eval_node(&self.root, vars)
     }
-
-    // pub fn print_truth_table(&self) {
-    //     // For every combination of variables (true / false) print the result of the formula
-    //     let mut vars = HashMap::new();
-    //     let mut variables = self.variables.iter().collect::<Vec<_>>();
-    //     variables.sort_unstable();
-
-    //     // Print header
-    //     print!("| ");
-    //     for var in &variables {
-    //         print!("{:^5} | ", var);
-    //     }
-    //     let root_str = format!("{}", self.root);
-    //     println!("{} |", root_str);
-    //     let line_len = 4 + root_str.len() + 8 * variables.len();
-    //     let line = "-".repeat(line_len);
-    //     println!("{line}");
-
-    //     let num_vars = variables.len();
-    //     let num_rows = 1 << num_vars;
-
-    //     for i in (0..num_rows).rev() {
-    //         print!("| ");
-    //         for (j, var) in variables.iter().enumerate() {
-    //             let value = (i >> (num_vars - 1 - j)) & 1 == 1;
-    //             vars.insert(var.to_string(), value);
-    //             let value_str = if value { "T" } else { "F" };
-    //             print!("{:^5} | ", value_str);
-    //         }
-
-    //         // Evaluate and print result
-    //         let result_str = match self.eval(&vars) {
-    //             Some(op) => {
-    //                 if op {
-    //                     "T"
-    //                 } else {
-    //                     "F"
-    //                 }
-    //             }
-    //             None => "E",
-    //         };
-    //         println!("{:^w$} |", result_str, w = root_str.len());
-    //     }
-
-    //     println!("{line}");
-    //     println!("T: True, F: False");
-    // }
 
     pub fn print_truth_table(&self) {
       let mut variables = self.variables.iter().collect::<Vec<_>>();
@@ -238,4 +191,10 @@ impl Formula {
   
       println!("\nT: True, F: False, E: Error (undefined variable)");
   }
+}
+
+impl std::fmt::Display for Formula {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.root)
+    }
 }
