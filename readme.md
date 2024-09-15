@@ -40,21 +40,19 @@ To generate a truth table, run the program with your logical formula as an argum
 
 This will output a nicely formatted truth table:
 
-```
-|   a   |   b   |   c   | a & b | ~c |
---------------------------------------
-|   T   |   T   |   T   |     T      |
-|   T   |   T   |   F   |     T      |
-|   T   |   F   |   T   |     F      |
-|   T   |   F   |   F   |     T      |
-|   F   |   T   |   T   |     F      |
-|   F   |   T   |   F   |     T      |
-|   F   |   F   |   T   |     F      |
-|   F   |   F   |   F   |     T      |
---------------------------------------
+| a | b | c | a ∧ b ∨ ¬c |
+|:-:|:-:|:-:|:-:|
+| T | T | T | T |
+| T | T | F | T |
+| T | F | T | F |
+| T | F | F | T |
+| F | T | T | F |
+| F | T | F | T |
+| F | F | T | F |
+| F | F | F | T |
+
 T: True, F: False
 
-```
 
 You can use the following operators in your formulas:
 - `&` or `&&` for AND

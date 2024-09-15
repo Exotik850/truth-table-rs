@@ -59,26 +59,26 @@ impl Node {
         match self {
             Node::And(left, right) => {
                 left.fmt_with_precedence(f, this_precedence)?;
-                write!(f, " & ")?;
+                write!(f, " ∧ ")?;
                 right.fmt_with_precedence(f, this_precedence)?;
             }
             Node::Or(left, right) => {
                 left.fmt_with_precedence(f, this_precedence)?;
-                write!(f, " | ")?;
+                write!(f, " ∨ ")?;
                 right.fmt_with_precedence(f, this_precedence)?;
             }
             Node::Not(operand) => {
-                write!(f, "~")?;
+                write!(f, "¬")?;
                 operand.fmt_with_precedence(f, this_precedence)?;
             }
             Node::If(left, right) => {
                 left.fmt_with_precedence(f, this_precedence)?;
-                write!(f, " -> ")?;
+                write!(f, " ⇒ ")?;
                 right.fmt_with_precedence(f, this_precedence)?;
             }
             Node::Iff(left, right) => {
                 left.fmt_with_precedence(f, this_precedence)?;
-                write!(f, " <-> ")?;
+                write!(f, " ⇔ ")?;
                 right.fmt_with_precedence(f, this_precedence)?;
             }
             Node::Atom(s) => write!(f, "{}", s)?,
@@ -148,50 +148,94 @@ impl Formula {
         eval_node(&self.root, vars)
     }
 
+    // pub fn print_truth_table(&self) {
+    //     // For every combination of variables (true / false) print the result of the formula
+    //     let mut vars = HashMap::new();
+    //     let mut variables = self.variables.iter().collect::<Vec<_>>();
+    //     variables.sort_unstable();
+
+    //     // Print header
+    //     print!("| ");
+    //     for var in &variables {
+    //         print!("{:^5} | ", var);
+    //     }
+    //     let root_str = format!("{}", self.root);
+    //     println!("{} |", root_str);
+    //     let line_len = 4 + root_str.len() + 8 * variables.len();
+    //     let line = "-".repeat(line_len);
+    //     println!("{line}");
+
+    //     let num_vars = variables.len();
+    //     let num_rows = 1 << num_vars;
+
+    //     for i in (0..num_rows).rev() {
+    //         print!("| ");
+    //         for (j, var) in variables.iter().enumerate() {
+    //             let value = (i >> (num_vars - 1 - j)) & 1 == 1;
+    //             vars.insert(var.to_string(), value);
+    //             let value_str = if value { "T" } else { "F" };
+    //             print!("{:^5} | ", value_str);
+    //         }
+
+    //         // Evaluate and print result
+    //         let result_str = match self.eval(&vars) {
+    //             Some(op) => {
+    //                 if op {
+    //                     "T"
+    //                 } else {
+    //                     "F"
+    //                 }
+    //             }
+    //             None => "E",
+    //         };
+    //         println!("{:^w$} |", result_str, w = root_str.len());
+    //     }
+
+    //     println!("{line}");
+    //     println!("T: True, F: False");
+    // }
+
     pub fn print_truth_table(&self) {
-        // For every combination of variables (true / false) print the result of the formula
-        let mut vars = HashMap::new();
-        let mut variables = self.variables.iter().collect::<Vec<_>>();
-        variables.sort_unstable();
-
-        // Print header
-        print!("| ");
-        for var in &variables {
-            print!("{:^5} | ", var);
-        }
-        let root_str = format!("{}", self.root);
-        println!("{} |", root_str);
-        let line_len = 4 + root_str.len() + 8 * variables.len();
-        let line = "-".repeat(line_len);
-        println!("{line}");
-
-        let num_vars = variables.len();
-        let num_rows = 1 << num_vars;
-
-        for i in (0..num_rows).rev() {
-            print!("| ");
-            for (j, var) in variables.iter().enumerate() {
-                let value = (i >> (num_vars - 1 - j)) & 1 == 1;
-                vars.insert(var.to_string(), value);
-                let value_str = if value { "T" } else { "F" };
-                print!("{:^5} | ", value_str);
-            }
-
-            // Evaluate and print result
-            let result_str = match self.eval(&vars) {
-                Some(op) => {
-                    if op {
-                        "T"
-                    } else {
-                        "F"
-                    }
-                }
-                None => "E",
-            };
-            println!("{:^w$} |", result_str, w = root_str.len());
-        }
-
-        println!("{line}");
-        println!("T: True, F: False");
-    }
+      let mut variables = self.variables.iter().collect::<Vec<_>>();
+      variables.sort_unstable();
+  
+      // Print header
+      print!("| ");
+      for var in &variables {
+          print!("{} | ", var);
+      }
+      let root_str = format!("{}", self.root);
+      println!("{} |", root_str);
+  
+      // Print separator
+      print!("|");
+      for _ in &variables {
+          print!(":-:|");
+      }
+      println!(":-:|");
+  
+      let num_vars = variables.len();
+      let num_rows = 1 << num_vars;
+      let mut vars = HashMap::new();
+  
+      for i in (0..num_rows).rev() {
+          print!("| ");
+          for (j, var) in variables.iter().enumerate() {
+              let value = (i >> (num_vars - 1 - j)) & 1 == 1;
+              vars.insert(var.to_string(), value);
+              let value_str = if value { "T" } else { "F" };
+              print!("{} | ", value_str);
+          }
+  
+          // Evaluate and print result
+          let result_str = match self.eval(&vars) {
+              Some(true) => "T",
+              Some(false) => "F",
+              None => "E",
+          };
+          println!("{} |", result_str);
+      }
+  
+      println!("\nT: True, F: False, E: Error (undefined variable)");
+  }
 }

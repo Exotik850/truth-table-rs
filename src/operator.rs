@@ -48,9 +48,11 @@ impl Operator {
 
     fn from_char(c: char) -> Option<Operator> {
         match c {
-            '&' => Some(Operator::And),
-            '|' => Some(Operator::Or),
-            '~' | '!' => Some(Operator::Not),
+            '&' | '∧' => Some(Operator::And),
+            '|' | '∨' => Some(Operator::Or),
+            '~' | '¬' | '!' => Some(Operator::Not),
+            '⇒' => Some(Operator::If),
+            '⇔' => Some(Operator::Iff),
             '(' | ')' => Some(Operator::Parenthesis),
             _ => None,
         }
